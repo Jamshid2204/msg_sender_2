@@ -6,7 +6,9 @@ const GROUPS_FILE = 'groups.json';
 const LAST_MESSAGES_FILE = 'last_messages.json';
 
 const token = process.env.BOT_TOKEN;
-const ownerId = process.env.OWNER_ID;
+const ownerIds = process.env.OWNER_IDS
+  ? process.env.OWNER_IDS.split(',').map(id => id.trim())
+  : [];
 
 const bot = new TelegramBot(token, { polling: true });
 
@@ -43,16 +45,18 @@ const sendMediaGroupDebounced = debounce(async (id) => {
   }
 
   fs.writeFileSync(LAST_MESSAGES_FILE, JSON.stringify(lastMessages, null, 2));
-  await bot.sendMessage(ownerId, `📷 ${groupMedia.length} ta albom ${groupIds.length} ta guruhga yuborildi.`);
+  for (const adminId of ownerIds) {
+    await bot.sendMessage(adminId, `📷 ${groupMedia.length} ta albom ${groupIds.length} ta guruhga yuborildi.`);
+  }
   delete mediaGroups[id];
 }, 2000);
 
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
 
-  if (msg.chat.type === 'private' && String(msg.from.id) !== String(ownerId)) {
-    return bot.sendMessage(chatId, "Sizda botni boshqarish huquqi yo'q.");
-  }
+  if (msg.chat.type === 'private' && !ownerIds.includes(String(msg.from.id))) {
+  return bot.sendMessage(chatId, "Sizda botni boshqarish huquqi yo'q.");
+}
 
   if (processedMessages.has(msg.message_id)) return;
   processedMessages.add(msg.message_id);
