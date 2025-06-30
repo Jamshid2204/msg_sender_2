@@ -2,7 +2,7 @@ require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 
-const GROUPS_FILE = 'groups1.json';
+const GROUPS_FILE = 'groups.json';
 const LAST_MESSAGES_FILE = 'last_messages.json';
 
 const token = process.env.BOT_TOKEN;
