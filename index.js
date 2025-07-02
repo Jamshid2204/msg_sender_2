@@ -2,7 +2,7 @@ require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 
-const GROUPS_FILE = 'groups.json';
+const GROUPS_FILE = 'groups2.json';
 const LAST_MESSAGES_FILE = 'last_messages.json';
 
 const token = process.env.BOT_TOKEN;
@@ -29,7 +29,10 @@ function generateGroupKeyboard(selectedIds = []) {
     text: `${selectedIds.includes(group.id) ? '✅' : '☑️'} ${group.name}`,
     callback_data: `toggle_${group.id}`
   }]);
-  buttons.push([{ text: '🚀 Yuborish', callback_data: 'send_message' }]);
+  buttons.push([
+    { text: '📤 Barchasiga', callback_data: 'send_all' },
+    { text: '🚀 Yuborish', callback_data: 'send_message' }
+  ]);
   return { inline_keyboard: buttons };
 }
 
@@ -128,6 +131,17 @@ bot.on('message', async (msg) => {
     }
   }
 
+    // 🆕 /ping qo‘shish — guruhdan kelgan bo‘lsa
+  if ((msg.chat.type === 'group' || msg.chat.type === 'supergroup') && msg.text === '/ping') {
+    if (!groupIds.find(g => g.id === msg.chat.id)) {
+      groupIds.push({ id: msg.chat.id, name: msg.chat.title || 'No name' });
+      fs.writeFileSync(GROUPS_FILE, JSON.stringify(groupIds, null, 2));
+      return bot.sendMessage(msg.chat.id, "✅ Bu guruh ro'yxatga qo‘shildi.");
+    } else {
+      return bot.sendMessage(msg.chat.id, "✅ Bu guruh allaqachon ro'yxatda mavjud.");
+    }
+  }
+
   if (['group', 'supergroup'].includes(msg.chat.type)) {
     if (!groupIds.find(g => g.id === chatId)) {
       groupIds.push({ id: chatId, name: msg.chat.title || 'No name' });
@@ -151,7 +165,6 @@ bot.on('message', async (msg) => {
     return bot.sendMessage(chatId, `${deleted} ta guruhda oxirgi xabar o'chirildi.`);
   }
 
-  // MediaGroup (album)
   if (msg.media_group_id && msg.photo && msg.chat.type === 'private') {
     const id = msg.media_group_id;
     if (!mediaGroups[id]) mediaGroups[id] = [];
@@ -173,7 +186,6 @@ bot.on('message', async (msg) => {
     return;
   }
 
-  // Video
   if (msg.video && msg.chat.type === 'private') {
     userSessions[userId] = { message: msg, selectedGroups: [] };
 
@@ -183,7 +195,6 @@ bot.on('message', async (msg) => {
     return;
   }
 
-  // Yakka rasm
   if (msg.photo && !msg.media_group_id && msg.chat.type === 'private') {
     userSessions[userId] = { message: msg, selectedGroups: [] };
 
@@ -193,7 +204,6 @@ bot.on('message', async (msg) => {
     return;
   }
 
-  // Matn
   if (msg.text && msg.chat.type === 'private' && !msg.text.startsWith('/')) {
     userSessions[userId] = { message: msg, selectedGroups: [] };
 
@@ -241,6 +251,15 @@ bot.on('callback_query', async (query) => {
       { chat_id: query.message.chat.id, message_id: query.message.message_id }
     );
     return bot.answerCallbackQuery(query.id);
+  }
+
+  if (data === 'send_all') {
+    session.selectedGroups = groupIds.map(g => g.id);
+    await bot.editMessageReplyMarkup(
+      generateGroupKeyboard(session.selectedGroups),
+      { chat_id: query.message.chat.id, message_id: query.message.message_id }
+    );
+    return bot.answerCallbackQuery(query.id, { text: 'Barcha guruhlar tanlandi' });
   }
 
   if (data === 'send_message') {
